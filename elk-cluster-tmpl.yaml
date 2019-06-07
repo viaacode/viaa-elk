@@ -1,0 +1,621 @@
+  apiVersion: v1
+  kind: Template
+  metadata:
+    creationTimestamp: null
+    name: viaa-elk
+  objects:
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      creationTimestamp: null
+      generation: 5
+      labels:
+        app: elastic-${ENV}
+        component: elasticsearch-${ENV}
+        role: master
+      name: es-cluster-${ENV}
+    spec:
+      podManagementPolicy: OrderedReady
+      replicas: 3
+      revisionHistoryLimit: 10
+      selector:
+        matchLabels:
+          component: elasticsearch-${ENV}
+          role: master
+      serviceName: elasticsearch-${ENV}
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            component: elasticsearch-${ENV}
+            role: master
+        spec:
+          containers:
+          - env:
+            - name: ENV
+              value: ${ENV}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: ES_PLUGINS_INSTALL
+              value: null
+            - name: CLUSTER_NAME
+              value: es-${ES_VERSION}-${ENV}
+            - name: NODE_MASTER
+              value: "true"
+            - name: NODE_INGEST
+              value: "true"
+
+            - name: ES_JAVA_OPTS
+              value: -Xms1000m -Xmx1000m
+            - name: PROCESSORS
+              value: "2"
+            - name: DISCOVERY_SERVICE
+              value: es-discover-${ENV}
+            image: docker-registry.default.svc:5000/viaa-elk/elastic-${ENV}:latest
+            imagePullPolicy: Always
+            livenessProbe:
+              failureThreshold: 3
+              initialDelaySeconds: 180
+              periodSeconds: 10
+              successThreshold: 1
+              tcpSocket:
+                port: transport
+              timeoutSeconds: 1
+            name: es-cluster-${ENV}
+            ports:
+            - containerPort: 9200
+              name: http
+              protocol: TCP
+            - containerPort: 9300
+              name: transport
+              protocol: TCP
+            resources: {}
+            securityContext:
+              capabilities:
+                add:
+                - IPC_LOCK
+                - SYS_RESOURCE
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /data
+              name: es-storage
+          dnsPolicy: ClusterFirst
+          initContainers:
+          - command:
+            - /bin/sh
+            - -c
+            - sysctl -w vm.max_map_count=262144
+            image: busybox:1.27.2
+            imagePullPolicy: IfNotPresent
+            name: init-sysctl
+            resources: {}
+            securityContext:
+              capabilities:
+                add:
+                - IPC_LOCK
+                - SYS_RESOURCE
+              privileged: true
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+      updateStrategy:
+        rollingUpdate:
+          partition: 0
+        type: RollingUpdate
+      volumeClaimTemplates:
+      - metadata:
+          creationTimestamp: null
+          name: es-storage
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+          storageClassName: vsphere-standard
+        status:
+          phase: Pending
+    status:
+      collisionCount: 0
+      currentReplicas: 3
+      currentRevision: es-cluster-${ENV}-6c694ff445
+      observedGeneration: 5
+      readyReplicas: 3
+      replicas: 3
+      updateRevision: es-cluster-${ENV}-6c694ff445
+      updatedReplicas: 3
+  - apiVersion: v1
+    data:
+      apm-server.yml: |-
+        apm-server:
+          host: "0.0.0.0:8200"
+          frontend:
+            enabled: false
+        setup.template.settings:
+          index:
+            number_of_shards: 1
+            codec: best_compression
+        setup.kibana:
+          host: "http://kibana-${ENV}:5601"
+        output.elasticsearch:
+          hosts: ["es-ingest-${ENV}"]
+          indices:
+            - index: "apm-%{[beat.version]}-sourcemap"
+              when.contains:
+                processor.event: "sourcemap"
+            - index: "apm-%{[beat.version]}-error-%{+yyyy.MM.dd}"
+              when.contains:
+                processor.event: "error"
+            - index: "apm-%{[beat.version]}-transaction-%{+yyyy.MM.dd}"
+              when.contains:
+                processor.event: "transaction"
+            - index: "apm-%{[beat.version]}-span-%{+yyyy.MM.dd}"
+              when.contains:
+                processor.event: "span"
+    kind: ConfigMap
+    metadata:
+      creationTimestamp: null
+      labels:
+        k8s-app: apm-server
+      name: apm-server-cnf-${ENV}
+  - apiVersion: v1
+    data:
+      kibana.yml: |-
+        ---
+        server.name: kibana-${ENV}
+        server.host: "0"
+        elasticsearch.hosts: http://es-ingest-${ENV}:9200
+        apm_oss.enabled: true
+        xpack.apm.enabled: true
+        xpack.apm.ui.enabled: true
+    kind: ConfigMap
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/last-applied-configuration: |
+          {"apiVersion":"v1","data":{"kibana.yml":"---\nserver.name: kibana\nserver.host: \"0\"\nelasticsearch.url: http://apm-es:9200\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"kibana-config","namespace":"viaa-logging"}}
+      creationTimestamp: null
+      name: kibana-config-${ENV}
+  - apiVersion: v1
+    data:
+      logstash.conf: "input {\n  tcp {\n    port => 5044\n    codec => \"json\"\n
+        \   type => \"json\"\n  }\n\n     rabbitmq {\n        queue    => \"log-json-test\"\n
+        \       durable  => \"true\"\n        host     => \"do-prd-rab-01.do.viaa.be\"\n
+        \       user     => \"admin\"\n        type => \"json\"\n        password
+        => \"\n\n   }     \n  syslog {\n    facility_labels => [\"kernel\",
+        \"user-level\", \"mail\", \"system\", \"security/authorization\", \"syslogd\",
+        \"line printer\", \"network\", \"news\", \"UUCP\", \"clock\", \"security/authorization\",
+        \"FTP\", \"NTP\", \"log audit\", \"log alert\", \"clock\", \"local0\", \"local1\",
+        \"local2\", \"local3\", \"local4\", \"local5\", \"local6\", \"local7\"]\n
+        \   severity_labels => [\"Emergency\", \"Alert\", \"Critical\", \"Error\",
+        \"Warning\", \"Notice\", \"Informational\", \"Debug\"]\n    port => 8514\n
+        \   codec => multiline {\n    pattern => \"^\\[\\d{4}-\\d{2}-\\d{2}\"\n    what
+        => \"previous\"\n    }\n } \n}\noutput {\n  elasticsearch {\n    hosts =>
+        [ \"es-ingest-${ENV}\" ]\n    ilm_enabled => false\n    ilm_rollover_alias
+        => \"logs-${ENV}\"\n    ilm_pattern => \"000001\"\n    ilm_policy => \"logstash-policy\"\n
+        \   }\n}"
+      logstash.yml: |-
+        http.host: "0.0.0.0"
+        path.config: /usr/share/logstash/pipeline
+        xpack.monitoring.enabled: false
+    kind: ConfigMap
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: elastic-${ENV}
+      name: logstash-${ENV}
+  - apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      annotations: null
+      creationTimestamp: null
+      generation: 2
+      labels:
+        app: elastic-${ENV}
+      name: apm-server-${ENV}
+    spec:
+      progressDeadlineSeconds: 600
+      replicas: 1
+      revisionHistoryLimit: 10
+      selector:
+        matchLabels:
+          app: apm-server-${ENV}
+      strategy:
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 1
+        type: RollingUpdate
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: apm-server-${ENV}
+        spec:
+          containers:
+          - image: docker.elastic.co/apm/apm-server:${ES_VERSION}
+            imagePullPolicy: IfNotPresent
+            name: apm-server-${ENV}
+            ports:
+            - containerPort: 8200
+              name: apm-port
+              protocol: TCP
+            resources:
+              limits:
+                cpu: 500m
+                memory: 512Mi
+              requests:
+                cpu: 200m
+                memory: 364Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /usr/share/apm-server/apm-server.yml
+              name: apm-server-cnf-${ENV}
+              readOnly: true
+              subPath: apm-server.yml
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+          volumes:
+          - configMap:
+              defaultMode: 420
+              name: apm-server-cnf-${ENV}
+            name: apm-server-cnf-${ENV}
+    status:
+      availableReplicas: 1
+      conditions:
+      - lastTransitionTime: 2019-03-08T08:21:23Z
+        lastUpdateTime: 2019-03-08T08:21:23Z
+        message: Deployment has minimum availability.
+        reason: MinimumReplicasAvailable
+        status: "True"
+        type: Available
+      - lastTransitionTime: 2019-03-08T08:21:23Z
+        lastUpdateTime: 2019-03-08T14:55:08Z
+        message: ReplicaSet "apm-server-${ENV}-6b8ff78db8" has successfully progressed.
+        reason: NewReplicaSetAvailable
+        status: "True"
+        type: Progressing
+      observedGeneration: 2
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 1
+  - apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      annotations:
+        deployment.kubernetes.io/revision: "1"
+        kubectl.kubernetes.io/last-applied-configuration: |
+          {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"component":"kibana"},"name":"kibana","namespace":"viaa-logging"},"spec":{"replicas":1,"selector":{"matchLabels":{"component":"kibana"}},"template":{"metadata":{"labels":{"component":"kibana"}},"spec":{"containers":[{"env":[{"name":"CLUSTER_NAME","value":"myesdb"},{"name":"SERVER_BASEPATH","value":"/api/v1/namespaces/default/services/kibana:http/proxy"}],"image":"docker.elastic.co/kibana/kibana-oss:${ES_VERSION}","name":"kibana","ports":[{"containerPort":5601,"name":"http"}],"readinessProbe":{"httpGet":{"path":"/api/status","port":"http"},"initialDelaySeconds":20,"timeoutSeconds":5},"resources":{"limits":{"cpu":"1000m"},"requests":{"cpu":"100m"}},"volumeMounts":[{"mountPath":"/usr/share/kibana/config","name":"config","readOnly":true}]}],"volumes":[{"configMap":{"name":"kibana-config"},"name":"config"}]}}}}
+      creationTimestamp: null
+      generation: 1
+      labels:
+        app: elastic-${ENV}
+        component: kibana-${ENV}
+      name: kibana-${ENV}
+    spec:
+      progressDeadlineSeconds: 600
+      replicas: 1
+      revisionHistoryLimit: 2
+      selector:
+        matchLabels:
+          component: kibana
+      strategy:
+        rollingUpdate:
+          maxSurge: 25%
+          maxUnavailable: 25%
+        type: RollingUpdate
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            component: kibana
+        spec:
+          containers:
+          - env:
+            - name: CLUSTER_NAME
+              value: es-${ES_VERSION}-${ENV}
+            - name: SERVER_BASEPATH
+            - name: app
+              value: elastic-${ENV}
+            image: docker.elastic.co/kibana/kibana:${ES_VERSION}
+            imagePullPolicy: IfNotPresent
+            name: kibana
+            ports:
+            - containerPort: 5601
+              name: http
+              protocol: TCP
+            readinessProbe:
+              failureThreshold: 3
+              httpGet:
+                path: /api/status
+                port: http
+                scheme: HTTP
+              initialDelaySeconds: 66
+              periodSeconds: 6
+              successThreshold: 1
+              timeoutSeconds: 6
+            resources:
+              limits:
+                cpu: "1"
+              requests:
+                cpu: 300m
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /usr/share/kibana/config
+              name: config
+              readOnly: true
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+          volumes:
+          - configMap:
+              defaultMode: 420
+              name: kibana-config-${ENV}
+            name: config
+    status: null
+  - apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      annotations:
+        deployment.kubernetes.io/revision: "9"
+      creationTimestamp: null
+      generation: 9
+      labels:
+        app: elastic-${ENV}
+      name: logstash-${ENV}
+    spec:
+      progressDeadlineSeconds: 600
+      replicas: 1
+      revisionHistoryLimit: 10
+      selector:
+        matchLabels:
+          app: logstash-${ENV}
+      strategy:
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 1
+        type: RollingUpdate
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app: logstash-${ENV}
+        spec:
+          containers:
+          - args:
+            - -f
+            - /usr/share/logstash/pipeline/logstash.conf
+            image: docker.elastic.co/logstash/logstash:${ES_VERSION}
+            imagePullPolicy: IfNotPresent
+            name: logstash-${ENV}
+            ports:
+            - containerPort: 5044
+              name: logstash
+              protocol: TCP
+            - containerPort: 8514
+              name: logsta-syl${ENV}
+              protocol: TCP
+            readinessProbe:
+              exec:
+                command:
+                - /bin/bash
+                - -c
+                - echo > /dev/tcp/es-ingest-${ENV}/9200
+              failureThreshold: 3
+              initialDelaySeconds: 3
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 16
+            resources:
+              limits:
+                cpu: "3"
+                memory: 1Gi
+              requests:
+                cpu: 500m
+                memory: 128Mi
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /usr/share/logstash/config/logstash.yml
+              name: config
+              readOnly: true
+              subPath: logstash.yml
+            - mountPath: /usr/share/logstash/pipeline
+              name: pipeline
+              readOnly: true
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+          volumes:
+          - configMap:
+              defaultMode: 420
+              items:
+              - key: logstash.conf
+                path: logstash.conf
+              name: logstash-${ENV}
+            name: pipeline
+          - configMap:
+              defaultMode: 420
+              items:
+              - key: logstash.yml
+                path: logstash.yml
+              name: logstash-${ENV}
+            name: config
+    status: null
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: apm-server-${ENV}
+      name: apm-server-${ENV}
+    spec:
+      externalTrafficPolicy: Cluster
+      ports:
+      - name: http
+        port: 8200
+        protocol: TCP
+        targetPort: 8200
+      selector:
+        app: apm-server-${ENV}
+      sessionAffinity: None
+      type: NodePort
+    status:
+      loadBalancer: {}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: viaa-elasticsearch
+        component: elasticsearch-${ENV}
+        role: master
+      name: es-discover-${ENV}
+    spec:
+      clusterIP: None
+      ports:
+      - name: transport
+        port: 9300
+        protocol: TCP
+        targetPort: 9300
+      selector:
+        component: elasticsearch-${ENV}
+        role: master
+      sessionAffinity: None
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: viaa-elasticsearch
+        component: elasticsearch-${ENV}
+        role: master
+      name: es-ingest-${ENV}
+    spec:
+      ports:
+      - name: http
+        port: 9200
+        protocol: TCP
+        targetPort: 9200
+      selector:
+        component: elasticsearch-${ENV}
+        role: master
+      sessionAffinity: None
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      creationTimestamp: null
+      labels:
+        elasticsearch: kibana
+      name: kibana-${ENV}
+    spec:
+      ports:
+      - name: http
+        port: 5601
+        protocol: TCP
+        targetPort: 5601
+      selector:
+        component: kibana
+      sessionAffinity: None
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      creationTimestamp: null
+      name: logsta-syl${ENV}
+    spec:
+      ports:
+      - name: syslog
+        port: 8514
+        protocol: TCP
+        targetPort: 8514
+      selector:
+        app: logstash-${ENV}
+      sessionAffinity: None
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: elastic-${ENV}
+      name: logstash-${ENV}
+    spec:
+      externalTrafficPolicy: Cluster
+      ports:
+      - name: logstash
+        port: 5044
+        protocol: TCP
+        targetPort: 5044
+      selector:
+        app: logstash-${ENV}
+      sessionAffinity: None
+      type: LoadBalancer
+    status:
+      loadBalancer: {}
+
+  - apiVersion: v1
+    kind: Route
+    metadata:
+      annotations:
+        openshift.io/host.generated: "true"
+      creationTimestamp: null
+      labels:
+        elasticsearch: kibana
+      name: kibana-${ENV}
+    spec:
+      host: kibana-${ENV}.apps.do-prd-okp-m0.do.viaa.be
+      port:
+        targetPort: http
+      to:
+        kind: Service
+        name: kibana
+        weight: 100
+      wildcardPolicy: None
+    status:
+      ingress:
+      - conditions:
+        - lastTransitionTime: 2019-02-26T11:48:16Z
+          status: "True"
+          type: Admitted
+        host: kibana-${ENV}.apps.do-prd-okp-m0.do.viaa.be
+        routerName: router
+        wildcardPolicy: None
+  parameters:
+  - name: ENV
+    value: tst
+  - description: string version eg 7.1.0
+    name: ES_VERSION
+    required: true
+    value: 7.1.0
+  - name: NAMESPACE
+    value: viaa-elk

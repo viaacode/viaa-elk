@@ -1,0 +1,67 @@
+apiVersion: v1
+data:
+  actions.yml: "# Remember, leave a key empty if there is no value.  None will be
+    a string,\n# not a Python \"NoneType\"\n#\n# Also remember that all examples have
+    'disable_action' set to True.  If you\n# want to use this action as a template,
+    be sure to set this to False after\n# copying it.\nactions:\n  1:\n    action:
+    delete_indices\n    description: >-\n      Delete indices older than 1 days (based
+    on index name), for metricbeat-\n      prefixed indices. Ignore the error if the
+    filter does not result in an\n      actionable list of indices (ignore_empty_list)
+    and exit cleanly.\n    options:\n      ignore_empty_list: True\n      timeout_override:\n
+    \     continue_if_exception: True\n      disable_action: False\n    filters:\n
+    \   - filtertype: pattern\n      kind: prefix\n      value: metricbeat-\n      exclude:\n
+    \   - filtertype: age\n      source: name\n      direction: older\n      timestring:
+    '%Y.%m.%d'\n      unit: days\n      unit_count: 2\n      exclude:\n  2:\n    action:
+    delete_indices\n    description: >-\n      Delete indices older than 3 days (based
+    on index name), for filebeat-\n      prefixed indices. Ignore the error if the
+    filter does not result in an\n      actionable list of indices (ignore_empty_list)
+    and exit cleanly.\n    options:\n      ignore_empty_list: True\n      timeout_override:\n
+    \     continue_if_exception: True\n      disable_action: False\n    filters:\n
+    \   - filtertype: pattern\n      kind: prefix\n      value: filebeat-\n      exclude:\n
+    \   - filtertype: age\n      source: name\n      direction: older\n      timestring:
+    '%Y.%m.%d'\n      unit: days\n      unit_count: 12\n      exclude:\n  3:\n    action:
+    replicas\n    description: >-\n      remove reps\n    options:\n      count: 0\n
+    \     ignore_empty_list: True\n      timeout_override:\n      continue_if_exception:
+    True\n      disable_action: False\n    filters:\n    - filtertype: pattern\n      kind:
+    prefix\n      value: filebeat-\n      exclude:\n    - filtertype: age\n      source:
+    name\n      direction: older\n      timestring: '%Y.%m.%d'\n      unit: days\n
+    \     unit_count: 3\n      exclude:\n  4:\n    action: replicas\n    description:
+    >-\n      remove reps\n    options:\n      count: 0\n      ignore_empty_list:
+    True\n      timeout_override:\n      continue_if_exception: True\n      disable_action:
+    False\n    filters:\n    - filtertype: pattern\n      kind: prefix\n      value:
+    metricbeat-\n      exclude:\n    - filtertype: age\n      source: name\n      direction:
+    older\n      timestring: '%Y.%m.%d'\n      unit: days\n      unit_count: 1\n      exclude:\n
+    \ 5:\n    action: delete_indices\n    description: >-\n      Delete indices older
+    than 1 days (based on index name), for .monitoring\n      prefixed indices. Ignore
+    the error if the filter does not result in an\n      actionable list of indices
+    (ignore_empty_list) and exit cleanly.\n    options:\n      ignore_empty_list:
+    True\n      timeout_override:\n      continue_if_exception: True\n      disable_action:
+    False\n    filters:\n    - filtertype: pattern\n      kind: prefix\n      value:
+    .monitoring-\n      exclude:\n    - filtertype: age\n      source: name\n      direction:
+    older\n      timestring: '%Y.%m.%d'\n      unit: days\n      unit_count: 2\n      exclude:\n\n
+    \     "
+  curator.yaml: |-
+    client:
+      hosts:
+        - elasticsearch-ingest-prd
+      port: 9200
+      url_prefix:
+      use_ssl: False
+      certificate:
+      client_cert:
+      client_key:
+      ssl_no_validate: False
+      http_auth:
+      timeout: 30
+      master_only: False
+
+    logging:
+      loglevel: INFO
+      logfile:
+      logformat: default
+      blacklist: ['elasticsearch', 'urllib3']
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: curator
+

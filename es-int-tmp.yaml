@@ -1,0 +1,113 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  template: es-init
+message: |-
+
+         env: ${ENV}
+
+metadata:
+  annotations:
+    description: |-
+      master fort es cluster
+
+    openshift.io/display-name: es-init
+    openshift.io/documentation-url:
+    openshift.io/long-description: This template provides a standalone es deployment
+      master cordinating cluster formation
+    openshift.io/provider-display-name: VIAA
+    tags: es,init
+  creationTimestamp: 2018-11-11T18:15:17Z
+  name: es-init
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: elastic-${ENV}
+      component: elasticsearch-${ENV}
+      role: master
+      ENV: ${ENV}
+    name: elastic-${ENV}
+  spec:
+    replicas: 1
+    selector:
+      app: elastic-${ENV}
+      component: elasticsearch-${ENV}
+      deploymentconfig: elastic-${ENV}
+      role: master
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftWebConsole
+        creationTimestamp: null
+        labels:
+          app: elastic-${ENV}
+          component: elasticsearch-${ENV}
+          deploymentconfig: elastic-${ENV}
+          role: master
+      spec:
+        containers:
+        - env:
+          - name: NODE_NAME
+            value: es-init
+          - name: CLUSTER_NAME
+            value: es-7.1.0-${ENV}
+          - name: NODE_MASTER
+            value: "true"
+          - name: NODE_INGEST
+            value: "false"
+          - name: NODE_DATA
+            value: "false"
+          - name: DISCOVERY_SERVICE
+            value: es-discover-${ENV}
+          image: docker-registry.default.svc:5000/viaa-elk-app/elastic-${ENV}:latest
+          imagePullPolicy: Always
+          name: elastic-${ENV}
+          ports:
+          - containerPort: 9200
+            protocol: TCP
+          - containerPort: 9300
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /data
+            name: elastic-${ENV}-1
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: elastic-${ENV}-1
+    test: false
+    triggers:
+    - type: ConfigChange
+  status:
+    availableReplicas: 0
+    latestVersion: 0
+    observedGeneration: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0
+parameters:
+  - name: ENV
+    value: tst
+    required: true

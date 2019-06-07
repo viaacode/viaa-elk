@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  labels:
+    name: elastic-elk-pipeline
+  name: elastic-elk-pipeline
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/viaacode/openshift_pipeline-jenkins-exmp.git
+  strategy:
+    type: JenkinsPipeline
+    jenkinsPipelineStrategy:
+      jenkinsfilePath: Jenkinsfile
