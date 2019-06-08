@@ -8,7 +8,7 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/viaacode/openshift_pipeline-jenkins-exmp.git
+      uri: https://github.com/viaacode/viaa-elk.git
   strategy:
     type: JenkinsPipeline
     jenkinsPipelineStrategy:

@@ -123,7 +123,7 @@
           - ReadWriteOnce
           resources:
             requests:
-              storage: 10Gi
+              storage: ${DISKSIZE}
           storageClassName: vsphere-standard
         status:
           phase: Pending
@@ -619,3 +619,5 @@
     value: 7.1.0
   - name: NAMESPACE
     value: viaa-elk
+  - name: DISKSIZE
+    value: 4Gi

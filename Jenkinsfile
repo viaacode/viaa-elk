@@ -38,11 +38,11 @@ pipeline {
 			    if (openshift.selector("template", "es-int").exists()) {
 				    echo "init tmpl exists"
 				    openshift.selector("all", [ template : "es-init" ]).delete()
-                                
+
 			    }
                             //openshift.selector("all", [ statefulset  : TEMPLATENAME ]).delete()
                             sh '''#!/bin/bash
-			
+
 			     oc delete all --selector=ENV=prd || true
 			     oc delete all --selector=ENV=prd,app=elastic-prd || echo "NOthing Deleted"
 			     sleep 10
@@ -60,14 +60,14 @@ pipeline {
             openshift.withCluster() {
                 openshift.withProject("viaa-elk") {
 			echo "newAPP"
-                 // openshift.newApp(initTemplatePath) 
+                 // openshift.newApp(initTemplatePath)
                 }
             }
         }
       }
     }
-  
-    
+
+
         stage('create2') {
             steps {
                 script {
@@ -138,7 +138,7 @@ pipeline {
 
                stage('Roll out') {
             steps {
-            input message: "Deploy Test cluster?: es-prd. Approve?", id: "approval"
+        //    input message: "Deploy Test cluster?: es-prd. Approve?", id: "approval"
 
                 script {
                     openshift.withCluster() {
@@ -146,12 +146,9 @@ pipeline {
                              echo "Rolling out  build from template"
                              sh '''#/bin/bash
                              echo Rolling out the prd cluster
-			     oc process -p ENV=prd -l app=elk-pipe -l ENV=prd -f es-int-tmp.yaml | oc apply -f -
-
-                             oc process -p ENV=prd -l app=elk-pipe -l ENV=prd  -f ./elk-cluster-tmpl.yaml | oc apply -f -
-
-
-			     oc process -f filebeat-ds.yaml -l ENV=prd,app=elastic-prd | oc apply -f -
+			                       oc process -p DISKSIZE=90Gi -p ENV=prd -l app=es-prd -l ENV=prd -f es-int-tmp.yaml | oc apply -f -
+                             oc process -p ENV=prd -l app=es-prd -l ENV=prd  -f ./elk-cluster-tmpl.yaml | oc apply -f -
+	                           oc process -f filebeat-ds.yaml -l ENV=prd,app=es-prd | oc apply -f -
                              '''
                         }
                     }

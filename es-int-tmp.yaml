@@ -109,5 +109,5 @@ objects:
     updatedReplicas: 0
 parameters:
   - name: ENV
-    value: tst
+    value: prd
     required: true
