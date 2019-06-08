@@ -33,7 +33,7 @@ objects:
           - -e
           env:
           - name: ELASTICSEARCH_HOST
-            value: es-ingest-tst.viaa-elk.svc
+            value: es-ingest-prd.viaa-elk.svc
           - name: ELASTICSEARCH_PORT
             value: "9200"
           - name: ELASTICSEARCH_USERNAME
