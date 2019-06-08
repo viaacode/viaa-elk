@@ -146,9 +146,9 @@ pipeline {
                              echo "Rolling out  build from template"
                              sh '''#/bin/bash
                              echo Rolling out the prd cluster
-			                       oc process -p DISKSIZE=90Gi -p ENV=prd -l app=es-prd -l ENV=prd -f es-int-tmp.yaml | oc apply -f -
-                             oc process -p ENV=prd -l app=es-prd -l ENV=prd  -f ./elk-cluster-tmpl.yaml | oc apply -f -
-	                           oc process -f filebeat-ds.yaml -l ENV=prd,app=es-prd | oc apply -f -
+			                       oc process -p ENV=prd -l app=elastic-prd -l ENV=prd -f es-int-tmp.yaml | oc apply -f -
+                             oc process  -p DISKSIZE=90Gi  -p ENV=prd -l app=elastic-prd -l ENV=prd  -f ./elk-cluster-tmpl.yaml | oc apply -f -
+	                           oc process -f filebeat-ds.yaml -l ENV=prd,app=elastic-prd | oc apply -f -
                              '''
                         }
                     }
