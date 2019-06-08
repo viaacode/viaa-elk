@@ -43,10 +43,10 @@ pipeline {
                             //openshift.selector("all", [ statefulset  : TEMPLATENAME ]).delete()
                             sh '''#!/bin/bash
 
-			     oc delete all --selector=ENV=prd || true
-			     oc delete all --selector=ENV=prd,app=elastic-prd || echo "NOthing Deleted"
+			     #oc delete all --selector=ENV=prd || true
+			    # oc delete all --selector=ENV=prd,app=elastic-prd || echo "NOthing Deleted"
 			     sleep 10
-			     for pod in $(oc -n viaa-elk get pods | grep Error | awk '{print $1}'); do oc delete pod --grace-period=1 ${pod}; done
+			   # for pod in $(oc -n viaa-elk get pods | grep Error | awk '{print $1}'); do oc delete pod --grace-period=1 ${pod}; done
 
                             '''
                         }
@@ -101,7 +101,7 @@ pipeline {
                              sh '''#!/bin/bash
                              oc project viaa-elk
                               # oc adm policy add-scc-to-user privileged system:serviceaccount:viaa-elk:default --as system:admin --as-group system:admins -n viaa-elk
-                              oc -n viaa-elk delete imagestreamtag.image.openshift.io "elastic-prd:7.1.0" || true
+                          #    oc -n viaa-elk delete imagestreamtag.image.openshift.io "elastic-prd:7.1.0" || true
                               #oc -n viaa-elk delete buildconfigs.build.openshift.io "elastic-prd-1" || true
                               oc -n viaa-elk start-build -w elastic-prd || oc -n viaa-elk new-build --name=elastic-prd --strategy=docker  .
                              '''
@@ -148,7 +148,7 @@ pipeline {
                              echo Rolling out the prd cluster
 			                       oc process -p ENV=prd -l app=elastic-prd -l ENV=prd -f es-int-tmp.yaml | oc apply -f -
                              oc process  -p DISKSIZE=90Gi  -p ENV=prd -l app=elastic-prd -l ENV=prd  -f ./elk-cluster-tmpl.yaml | oc apply -f -
-	                           oc process -f filebeat-ds.yaml -l ENV=prd,app=elastic-prd | oc apply -f -
+	                        #   oc process -f filebeat-ds.yaml -l ENV=prd,app=elastic-prd | oc apply -f -
                              '''
                         }
                     }

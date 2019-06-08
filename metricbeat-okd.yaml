@@ -359,7 +359,7 @@ objects:
     name: metricbeat
 parameters:
   - name: ENV
-    value: tst
+    value: prd
   - description: string version eg 7.1.0
     name: ES_VERSION
     required: true
@@ -367,4 +367,4 @@ parameters:
   - name: NAMESPACE
     value: viaa-elk
   - name: ELASTICSEARCH_HOST
-    value: es-ingest-tst
+    value: es-ingest-prd

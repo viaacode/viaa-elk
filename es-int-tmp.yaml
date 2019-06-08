@@ -98,8 +98,22 @@ objects:
         - emptyDir: {}
           name: elastic-${ENV}-1
     test: false
+
     triggers:
-    - type: ConfigChange
+      - imageChangeParams:
+
+          automatic: true
+          containerNames:
+            - elastic-prd
+          from:
+            kind: ImageStreamTag
+            name: 'elastic-prd:latest'
+            namespace: viaa-elk
+
+          lastTriggeredImage:
+        type: ImageChange
+
+      - type: ConfigChange
   status:
     availableReplicas: 0
     latestVersion: 0
