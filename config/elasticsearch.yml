@@ -28,3 +28,4 @@ xpack.ml.enabled: false
 discovery:
   seed_hosts:
    - ${DISCOVERY_SERVICE}:9300
+discovery.zen.minimum_master_nodes: 2

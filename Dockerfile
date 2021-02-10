@@ -5,7 +5,7 @@ EXPOSE 9200 9300
 # Export HTTP & Transport
 EXPOSE 9200 9300
 # set argmunt for this
-ENV ES_VERSION 7.5.1
+ENV ES_VERSION 7.10.0
 # https://www.elastic.co/guide/en/elasticsearch/reference/current/setup-repositories.html
 # https://www.elastic.co/guide/en/elasticsearch/reference/5.0/deb.html
 
