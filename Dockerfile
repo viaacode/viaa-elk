@@ -90,10 +90,10 @@ ENV REPO_LOCATIONS ""
 ENV DISCOVERY_SERVICE "localhost"
 ENV env prd
 # Volume for Elasticsearch data
-VOLUME ["/data"]
 # Override config, otherwise plug-in install will fail
 ADD config /elasticsearch/config
 RUN mv config/elasticsearch.yml config/elasticsearch.yml
+VOLUME ["/data"]
 
 # Set environment
 ENV DISCOVERY_SERVICE elasticsearch-discovery
