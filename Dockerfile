@@ -93,7 +93,7 @@ ENV env prd
 VOLUME ["/data"]
 # Override config, otherwise plug-in install will fail
 ADD config /elasticsearch/config
-RUN mv config/elasticsearch6.yml config/elasticsearch.yml
+RUN mv config/elasticsearch.yml config/elasticsearch.yml
 
 # Set environment
 ENV DISCOVERY_SERVICE elasticsearch-discovery
