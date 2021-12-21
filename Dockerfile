@@ -92,7 +92,7 @@ ENV env prd
 # Volume for Elasticsearch data
 # Override config, otherwise plug-in install will fail
 ADD config /elasticsearch/config
-#RUN mv config/elasticsearch.yml config/elasticsearch.yml
+RUN chown 999:999 -R /elasticsearch/config
 VOLUME ["/data"]
 
 # Set environment
