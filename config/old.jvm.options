@@ -76,8 +76,7 @@
 -Dlog4j.shutdownHookEnabled=false
 -Dlog4j2.disable.jmx=true
 -Dlog4j.skipJansi=true
-# fix zero-day-exploit-in-log4j2
-#-Dlog4j2.formatMsgNoLookups=true
+
 ## heap dumps
 
 # generate a heap dump when an allocation from the Java heap fails

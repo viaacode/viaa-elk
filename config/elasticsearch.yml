@@ -1,15 +1,11 @@
 cluster:
   name: ${CLUSTER_NAME}
-  initial_master_nodes: es-init
+
 node:
-  master: ${NODE_MASTER}
-  data: ${NODE_DATA}
   name: ${NODE_NAME}
-  ingest: ${NODE_INGEST}
-  max_local_storage_nodes: ${MAX_LOCAL_STORAGE_NODES}
 
-
-network.host: ${NETWORK_HOST}
+#network.host: ${NETWORK_HOST}
+network.host: _site_
 
 path:
   data: /data/data
@@ -21,11 +17,20 @@ bootstrap:
 
 http:
   cors:
-    enabled: ${HTTP_CORS_ENABLE}
+    enabled: true
     allow-origin: ${HTTP_CORS_ALLOW_ORIGIN}
 
+#discovery:
+#  seed_hosts:
+#    - ${DISCOVERY_SERVICE}
 xpack.ml.enabled: false
-discovery:
-  seed_hosts:
-   - ${DISCOVERY_SERVICE}:9300
-discovery.zen.minimum_master_nodes: 2
+
+gateway.recover_after_nodes: 2
+gateway.expected_nodes: 3
+
+
+# RE-ENABLE once at es7 and java 11
+# Bootstrap the cluster using an initial set of master-eligible nodes:
+#
+discovery.seed_hosts: ["es-cluster-${env}-0", "es-cluster-${env}-1", "es-cluster-${env}-2"]
+cluster.initial_master_nodes: ["es-cluster-${env}-0", "es-cluster-${env}-1", "es-cluster-${env}-2"]
