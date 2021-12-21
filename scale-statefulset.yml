@@ -1,0 +1,10 @@
+￼
+In case you don't wanna delete the daemonset, one possible work-around is to use temporary nodeSelector with any non-existing label, for example:
+
+kubectl -n <namespace> patch daemonset <name-of-daemon-set> -p '{"spec": {"template": {"spec": {"nodeSelector": {"non-existing": "true"}}}}}'
+This will scale the daemonset down.
+
+And here is the patch to remove temporary nodeSelector:
+
+kubectl -n <namespace> patch daemonset <name-of-daemon-set> --type json -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector/non-existing"}]'
+This will scale the daemonset up again.

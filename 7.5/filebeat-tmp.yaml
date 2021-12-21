@@ -1,0 +1,296 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: filebeat-7.5
+objects:
+- apiVersion: v1
+  data:
+    filebeat.yml: "filebeat.inputs:\n- type: container\n  paths:\n    - /var/log/containers/*.log\n  processors:\n    - add_kubernetes_metadata:\n        host: ${NODE_NAME}\n        matchers:\n        - logs_path:\n            logs_path: \"/var/log/containers/\"\n\n# To enable hints based autodiscover, remove `filebeat.inputs` configuration and uncomment this:\n#filebeat.autodiscover:\n#  providers:\n#    - type: kubernetes\n#      node: ${NODE_NAME}\n#      hints.enabled: true\n#      hints.default_config:\n#        type: container\n#        paths:\n#          - /var/log/containers/*${data.kubernetes.container.id}.log\n\nprocessors:\n  - add_cloud_metadata:\n  - add_host_metadata:\n\ncloud.id: ${ELASTIC_CLOUD_ID}\ncloud.auth: ${ELASTIC_CLOUD_AUTH}\n\n# output logstsash\noutput.logstash:\n  hosts: [\"logs.meemoo.be:5044\"]\n  ssl.enabled: true\n  ssl.certificate_authorities: [\"/usr/share/filebeat/inputs.d/ca.crt\"]\n  ssl.certificate: \"/usr/share/filebeat/inputs.d/logstash.crt\"\n  ssl.key: \"/usr/share/filebeat/inputs.d/logstash.key\" \n  ssl.verification_mode: full\n  \n  \n# output.elasticsearch:\n#  hosts: ['${ELASTICSEARCH_HOST:elasticsearch}:${ELASTICSEARCH_PORT:9200}']\n#  username: ${ELASTICSEARCH_USERNAME}\n#  password: ${ELASTICSEARCH_PASSWORD}"
+  kind: ConfigMap
+  metadata:
+    annotations:
+
+    labels:
+      k8s-app: filebeat
+    name: filebeat-config
+    namespace: kube-system
+
+- apiVersion: v1
+  data:
+    ca.crt: |-
+      -----BEGIN CERTIFICATE-----
+      MIIECzCCAvOgAwIBAgIUZOObjJ3kUHkFeKpD7yUtigc3nkcwDQYJKoZIhvcNAQEL
+      BQAwgZQxCzAJBgNVBAYTAkJFMRgwFgYDVQQIDA9vb3N0LXZsYWFuZGVyZW4xDTAL
+      BgNVBAcMBGdlbnQxDzANBgNVBAoMBm1lZW1vbzEQMA4GA1UECwwHYXJjaGllZjEX
+      MBUGA1UEAwwObG9ncy5tZWVtb28uYmUxIDAeBgkqhkiG9w0BCQEWEXN1cHBvcnRA
+      bWVlbW9vLmJlMB4XDTIwMDQzMDE1MjA0NVoXDTMwMDQyODE1MjA0NVowgZQxCzAJ
+      BgNVBAYTAkJFMRgwFgYDVQQIDA9vb3N0LXZsYWFuZGVyZW4xDTALBgNVBAcMBGdl
+      bnQxDzANBgNVBAoMBm1lZW1vbzEQMA4GA1UECwwHYXJjaGllZjEXMBUGA1UEAwwO
+      bG9ncy5tZWVtb28uYmUxIDAeBgkqhkiG9w0BCQEWEXN1cHBvcnRAbWVlbW9vLmJl
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2Ql9S1jg2gZWMgL3MJjY
+      3CY7u0CMJ5mSLJR67dNGAjD9g6ZpGSB1+3FHF3nRm3ELYAQBI+CYDzWsCLZAHURy
+      4t9odJuoOLJDN54EBaMhg83JZEOvsrfhoS+jnBEIdnh4ZAAIwjLe+JyT/IK6nalu
+      B6Jb8H4kElF6epx7qW5QeuVMPHE8yr6jWYQWHYLQRWoDWWXe7wXPd1vyJKH358XX
+      wOyf8snQk12lwNgtUGAhx4eTlDIFaAN7v7fKFBhLNwT5wso9HXVw6EyaTclkWkB2
+      A8vHO3oYVupr2eEPXKOVDvJNCDzC/RIhzj9c0kk2hOBCKt6Bd3tqc6Elsz5YEg/9
+      nQIDAQABo1MwUTAdBgNVHQ4EFgQUSUQBmRQ/TQUQ6Rv4coPPSds9/38wHwYDVR0j
+      BBgwFoAUSUQBmRQ/TQUQ6Rv4coPPSds9/38wDwYDVR0TAQH/BAUwAwEB/zANBgkq
+      hkiG9w0BAQsFAAOCAQEAeJ8r3RH2resg958BB05TFcjLl+SmNuGa1pZQcPT2w8DA
+      rdyE8Hsj28R/qeDIzU95+gWx+voIO/76REQq02qXfYyO/pkNe7XXbHqAcH2u05PL
+      C1i4wwpUsl18Df3RSaSZMDBtYoQ/RFlnFMSOufh6q7kK1d/PmeotqQXsUViEMMrx
+      M3nDgTD9MkBsbpfHEI1oPkH5L+lVHoOMXBTTBf/QeYpEyPQkHhLhtfLl1pSq2KDa
+      s+RXiRplrfobFIKF2iS+m3TF0JSalcsXR9m2u8zF7cOVmkccK3e2qZbLoCowY538
+      zvK4lzWbUc6QOObEUxoqPiJSkJtbozjWKAw9y4/DVQ==
+      -----END CERTIFICATE-----
+    kubernetes.yml: |-
+      - type: docker
+        containers.ids:
+        - "*"
+        processors:
+          - add_kubernetes_metadata:
+              in_cluster: true
+    logstash.crt: |-
+      -----BEGIN CERTIFICATE-----
+      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
+      0YbSeTFQ38QS2PW96YiHPeM=
+      -----END CERTIFICATE-----
+    logstash.key: |-
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpQIBAAKCAQEAuD2gH8xPOzD7dzaPWQ+GaF5BIEOwiR/X+KzhJQCM0USnfpRX
+      D8UsapeKK7E3fcQbLkO4mFhxhKUtA2/lVZT0pPdj9WXYibyPZSYiELD+5+bJI2li
+      CileY6QyzNvd3FlL+N3wOmesz1vu9Z/7iRrJmnv20WMArfoAaGgXrTPdEW0a5unT
+      syG3RLFZZJ23wDizZqAeyyeGSRLvPQ6nJe9RUtdQPOSzln3IbK5+G9Nsp9sHLuZb
+      jsu6JmkmgMW/vtDGjPUZy69zU9RFHr5tlRb0fGaVJiF3fvHWfWjwzU2yuskcjFQE
+      ZfMGzpsjqrfJQoGxsRxUtC/1nuNuwwFEcc3giQIDAQABAoIBAQCiz4KC1w9lJUHy
+      9Tnz3+5MqI4wruCALK2zyUIkaroF6/9/siLFgt5fS48EUVTSRMwoNBwaNH4MU9LV
+      aLpmyHzwktW4c8nI3eJx5iLQUTjRQXaZXnUOucP5lY52zgzeveKPB8FUO23QyFMA
+      p+GmJQ/m/oj8O9rL41Mc8G+L1XsT+66R4aWgRyuMeJHD/USWXIScaUB57Ja8UlLc
+      HJTlmvesiUYj+31FG8TNprhMo0XpcO/V0fEfy+5f2Yi89KawqVe0qOIsmLCukr/B
+      Thk1b5AWIes8qC22xbxXLE2vCFTfgS950yfbsIczCIdgQH/cMNs3rU20X/omJT8q
+      T8h64i7pAoGBAPD8nNPMxGPvZscdVgnGi1ruRaCp/DD+lVKXfOXAueHhuMPddU1n
+      IzW8xkdvY1mMK625SXyWWjUtZhrlL6BPKmn5fdvGHQl/JCIuOcTrTh7UBhXUsS83
+      POSTtOQQoLgj+eBlsURYUbr3f3pseKXkKtkqstOyjDByn6kqGcAT4xHjAoGBAMO3
+      /wtm5VlmQ9Dpi9/JEOxBg+hNFctYeNLotUOZq4YO/gU6dwpzh1V1hDLyFjBZmfeN
+      4agADPStBIcpw+JAsl/fpLlVhfpMw846TaQTs5Moy/5/cHdjUZjfzse9AvbAwiM3
+      N9UOFEiCXwaADGjlxEUKzt1/yfx4jcM/Y1zj5R+jAoGAVjTHlSynBGjbh1cDNDQG
+      Hd0mozartIsdt5HhZ/7tf9RTWB2cnLfMbKi+9Ubvb1UpOtgRZbQTSPqYj/50bxBi
+      x84sK7ZPJNqKfn+ywrK6G2UVWDHhwFYuPkZoaz1XgQe9l3xJUX2Wnx9yRsUO06kv
+      esg/eGNiquIWI1mgJIn4rKkCgYEAs7uMo9PiWq7nKDrRELl8qPmhQPtJQGwGyOib
+      TXEZawrpi7OdDiP57Cj3NjHK3qvqEMRirf0d6LParKVWFbiEFjcy9l/roWhNiF1S
+      X5MYHdQhQZ2WkozKqjEdm5+f0SpDHkPfKfC7/7p5uWZt/wbBrwW14wMvYoLy7JKR
+      lQRTrTECgYEAqFs9CKsnRcKbQt52w91djE4OD0rrJovSt8GR/9OH11EIlnqaEFiS
+      dntjEfJ+65N2Z2eCGALwC/9+EFp8Vb0c+K0L3Qs6i6NDT+SqybgyHTdq0XIzLvm+
+      8xSGNvh+hYLbhxuIqzJAimlk2JM6Xj9/ACVxxJgRorLRyAu891o+4Eo=
+      -----END RSA PRIVATE KEY-----
+  kind: ConfigMap
+  metadata:
+    name: filebeat-inputs
+    namespace: kube-system
+
+
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"DaemonSet","metadata":{"annotations":{},"labels":{"k8s-app":"filebeat"},"name":"filebeat","namespace":"kube-system"},"spec":{"selector":{"matchLabels":{"k8s-app":"filebeat"}},"template":{"metadata":{"labels":{"k8s-app":"filebeat"}},"spec":{"containers":[{"args":["-c","/etc/filebeat.yml","-e"],"env":[{"name":"ELASTICSEARCH_HOST","value":"elasticsearch"},{"name":"ELASTICSEARCH_PORT","value":"9200"},{"name":"ELASTICSEARCH_USERNAME","value":"elastic"},{"name":"ELASTICSEARCH_PASSWORD","value":"changeme"},{"name":"ELASTIC_CLOUD_ID","value":null},{"name":"ELASTIC_CLOUD_AUTH","value":null},{"name":"NODE_NAME","valueFrom":{"fieldRef":{"fieldPath":"spec.nodeName"}}}],"image":"docker.elastic.co/beats/filebeat:7.5.1","name":"filebeat","resources":{"limits":{"memory":"300Mi"},"requests":{"cpu":"100m","memory":"100Mi"}},"securityContext":{"privileged":true,"runAsUser":0},"volumeMounts":[{"mountPath":"/etc/filebeat.yml","name":"config","readOnly":true,"subPath":"filebeat.yml"},{"mountPath":"/usr/share/filebeat/data","name":"data"},{"mountPath":"/var/lib/docker/containers","name":"varlibdockercontainers","readOnly":true},{"mountPath":"/var/data/kubeletlogs","name":"vardatakublet","readOnly":true},{"mountPath":"/var/log","name":"varlog","readOnly":true}]}],"dnsPolicy":"ClusterFirstWithHostNet","hostNetwork":true,"serviceAccountName":"filebeat","terminationGracePeriodSeconds":30,"volumes":[{"configMap":{"defaultMode":384,"name":"filebeat-config"},"name":"config"},{"hostPath":{"path":"/var/lib/docker/containers"},"name":"varlibdockercontainers"},{"hostPath":{"path":"/var/data/kubeletlogs"},"name":"vardatakublet"},{"hostPath":{"path":"/var/log"},"name":"varlog"},{"hostPath":{"path":"/var/lib/filebeat-data","type":"DirectoryOrCreate"},"name":"data"}]}}}}
+    creationTimestamp: "2020-04-29T12:13:31Z"
+    generation: 9
+    labels:
+      k8s-app: filebeat
+    name: filebeat
+    namespace: kube-system
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s-app: filebeat
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          k8s-app: filebeat
+      spec:
+        containers:
+        - args:
+          - -c
+          - /etc/filebeat.yml
+          - -e
+          env:
+          - name: ELASTICSEARCH_HOST
+            value: elasticsearch
+          - name: ELASTICSEARCH_PORT
+            value: "9200"
+          - name: ELASTICSEARCH_USERNAME
+            value: elastic
+          - name: ELASTICSEARCH_PASSWORD
+            value: changeme
+          - name: ELASTIC_CLOUD_ID
+          - name: ELASTIC_CLOUD_AUTH
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          image: docker.elastic.co/beats/filebeat:7.5.1
+          imagePullPolicy: IfNotPresent
+          name: filebeat
+          resources:
+            limits:
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/filebeat.yml
+            name: config
+            readOnly: true
+            subPath: filebeat.yml
+          - mountPath: /usr/share/filebeat/data
+            name: data
+          - mountPath: /var/lib/docker/containers
+            name: varlibdockercontainers
+            readOnly: true
+          - mountPath: /var/data/kubeletlogs
+            name: vardatakublet
+            readOnly: true
+          - mountPath: /var/log
+            name: varlog
+            readOnly: true
+          - mountPath: /usr/share/filebeat/inputs.d
+            name: inputs
+            readOnly: true
+        dnsPolicy: ClusterFirstWithHostNet
+        hostAliases:
+        - hostnames:
+          - logs.meemoo.be
+          ip: 193.190.71.172
+        hostNetwork: true
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: filebeat
+        serviceAccountName: filebeat
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            defaultMode: 384
+            name: filebeat-config
+          name: config
+        - hostPath:
+            path: /var/lib/docker/containers
+            type: ""
+          name: varlibdockercontainers
+        - hostPath:
+            path: /var/data/kubeletlogs
+            type: ""
+          name: vardatakublet
+        - hostPath:
+            path: /var/log
+            type: ""
+          name: varlog
+        - configMap:
+            defaultMode: 384
+            name: filebeat-inputs
+          name: inputs
+        - hostPath:
+            path: /var/lib/filebeat-data
+            type: DirectoryOrCreate
+          name: data
+    templateGeneration: 9
+    updateStrategy:
+      rollingUpdate:
+        maxUnavailable: 1
+      type: RollingUpdate
+
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: filebeat-inputs
+    namespace: kube-system
+    labels:
+      k8s-app: filebeat
+  data:
+    kubernetes.yml: |-
+      - type: docker
+        containers.ids:
+        - "*"
+        processors:
+          - add_kubernetes_metadata:
+              in_cluster: true
+
+
+- apiVersion: rbac.authorization.k8s.io/v1 
+  kind: ClusterRoleBinding
+  metadata:
+    name: filebeat
+  subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: kube-system
+  roleRef:
+    kind: ClusterRole
+    name: filebeat
+    apiGroup: rbac.authorization.k8s.io
+
+- apiVersion: rbac.authorization.k8s.io/v1 
+  kind: ClusterRole
+  metadata:
+    name: filebeat
+    labels:
+      k8s-app: filebeat
+  rules:
+  - apiGroups: [""] # "" indicates the core API group
+    resources:
+    - namespaces
+    - pods
+    verbs:
+    - get
+    - watch
+    - list
+
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: filebeat
+    namespace: kube-system
+    labels:
+      k8s-app: filebeat
+
+parameters:
+- name: env
+  value: IBM
